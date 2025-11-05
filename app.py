@@ -10,7 +10,7 @@ import os
 # MODEL DOWNLOAD SECTION
 # ------------------------
 MODEL_FILE = "vit_base_patch16_224_best.pth"
-MODEL_URL = "https://github.com/YOUR_USERNAME/SkinDisease_AI_Project/releases/download/v1.0/vit_base_patch16_224_best.pth"
+MODEL_URL = "https://github.com/Unknown-Harsha/SkinDisease_AI_Project/releases/download/v1.0/vit_base_patch16_224_best.pth"
 
 def ensure_model_downloaded():
     if not os.path.exists(MODEL_FILE):
