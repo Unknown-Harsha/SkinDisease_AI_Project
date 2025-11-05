@@ -42,7 +42,25 @@ def load_model():
     model_name = "vit_base_patch16_224"
     num_classes = 15  # adjust this to your dataset’s total classes
     model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
-    model.load_state_dict(torch.load(MODEL_FILE, map_location='cpu'))
+import torch
+import timm
+import streamlit as st
+
+@st.cache_resource
+def load_model():
+    model = timm.create_model("mobilenetv2_100", pretrained=False, num_classes=15)
+
+    checkpoint = torch.load(MODEL_FILE, map_location=torch.device('cpu'))
+
+    if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+        model.load_state_dict(checkpoint['state_dict'], strict=False)
+    elif isinstance(checkpoint, dict):
+        model.load_state_dict(checkpoint, strict=False)
+    else:
+        model = checkpoint
+
+    model.eval()
+    return model
     model.eval()
     return model
 
@@ -106,3 +124,4 @@ if uploaded_file is not None:
 
 st.markdown("---")
 st.markdown("© 2025 | Skin Disease Detection AI | Developed by Harsha (ECE)")
+
