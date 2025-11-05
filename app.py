@@ -103,15 +103,12 @@ if image is not None:
     st.image(image, caption="Captured Image", use_column_width=True)
     st.write("🔍 Analyzing... please wait.")
     label, confidence = predict_image(image)
-    st.success(f"✅ Predicted Label ID: {label}")
+    predicted_name = LABELS[label] if label < len(LABELS) else "Unknown"
+    st.success(f"✅ Predicted Disease: {predicted_name}")
+    st.info(f"Confidence: {confidence:.2f}%")
     st.info(f"Confidence: {confidence:.2f}%")
 
 
-    st.write("🔍 Analyzing... please wait.")
-    label, confidence = predict_image(image)
-
-    st.success(f"✅ Predicted Label ID: {label}")
-    st.info(f"Confidence: {confidence:.2f}%")
 
 
 
