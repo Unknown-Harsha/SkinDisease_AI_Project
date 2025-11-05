@@ -64,7 +64,28 @@ def predict_image(image):
 st.title("🩺 Skin Disease Detection AI")
 st.write("Upload an image to classify common skin diseases and conditions.")
 
-uploaded_file = st.file_uploader("Choose a skin image...", type=["jpg", "jpeg", "png"])
+st.write("📸 You can either upload an image or use your webcam for live detection.")
+
+option = st.radio("Select input method:", ["Upload Image", "Use Camera"])
+
+image = None
+
+if option == "Upload Image":
+    uploaded_file = st.file_uploader("Choose a skin image...", type=["jpg", "jpeg", "png"])
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file).convert("RGB")
+
+elif option == "Use Camera":
+    camera_image = st.camera_input("Capture a skin image using your webcam")
+    if camera_image is not None:
+        image = Image.open(camera_image).convert("RGB")
+
+if image is not None:
+    st.image(image, caption="Captured Image", use_column_width=True)
+    st.write("🔍 Analyzing... please wait.")
+    label, confidence = predict_image(image)
+    st.success(f"✅ Predicted Label ID: {label}")
+    st.info(f"Confidence: {confidence:.2f}%")
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
@@ -75,3 +96,4 @@ if uploaded_file is not None:
 
     st.success(f"✅ Predicted Label ID: {label}")
     st.info(f"Confidence: {confidence:.2f}%")
+
