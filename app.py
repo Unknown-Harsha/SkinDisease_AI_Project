@@ -1,13 +1,42 @@
 import streamlit as st
 import torch
+import os
 from PIL import Image
 import timm
+import torchvision.transforms as transforms
 
-# --- MODEL LOADING ---
+# --- APP TITLE ---
+st.set_page_config(page_title="AI Skin Disease Detection", layout="centered")
+st.title("🌿 AI-Based Skin Disease Detection")
+st.write("Upload or capture a skin image to detect possible diseases using AI.")
+
+
+# --- LOAD MODEL SAFELY ---
 @st.cache_resource
 def load_model():
+    MODEL_PATHS = [
+        "./vit_base_patch16_224_best.pth",
+        "/mount/src/skindisease_ai_project/vit_base_patch16_224_best.pth",
+        "/app/skindisease_ai_project/vit_base_patch16_224_best.pth"
+    ]
+
+    model_path = None
+    for path in MODEL_PATHS:
+        if os.path.exists(path):
+            model_path = path
+            break
+
+    if model_path is None:
+        st.error("❌ Model file not found.\nPlease make sure 'vit_base_patch16_224_best.pth' is in the same folder as app.py.")
+        st.stop()
+
+    st.info(f"📁 Loading model from: {model_path}")
+
+    # Initialize model
     model = timm.create_model("mobilenetv2_100", pretrained=False, num_classes=15)
-    checkpoint = torch.load("vit_base_patch16_224_best.pth", map_location=torch.device('cpu'))
+
+    # Load checkpoint safely
+    checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
 
     if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
         model.load_state_dict(checkpoint['state_dict'], strict=False)
@@ -20,11 +49,12 @@ def load_model():
     return model
 
 
+# --- MODEL INITIALIZATION ---
 model = load_model()
+
 
 # --- PREDICTION FUNCTION ---
 def predict_image(image):
-    import torchvision.transforms as transforms
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -39,7 +69,7 @@ def predict_image(image):
     return predicted.item(), confidence
 
 
-# --- LABELS ---
+# --- LABELS (MATCH YOUR DATASET) ---
 LABELS = [
     "Acne", "Eczema", "Psoriasis", "Ringworm", "Rosacea",
     "Vitiligo", "Warts", "Melanoma", "Basal Cell Carcinoma",
@@ -48,33 +78,36 @@ LABELS = [
 ]
 
 
-# --- MAIN APP UI ---
-st.title("🌿 AI-Based Skin Disease Detection (Camera + Upload)")
-st.write("Detect skin diseases in real-time using AI")
-
-option = st.radio("Select input method:", ["Upload Image", "Use Camera"])
+# --- MAIN UI ---
+option = st.radio("Select Input Method:", ["📁 Upload Image", "📷 Use Camera"])
 
 image = None
 
-if option == "Upload Image":
-    uploaded_file = st.file_uploader("Choose a skin image...", type=["jpg", "jpeg", "png"])
+if option == "📁 Upload Image":
+    uploaded_file = st.file_uploader("Upload a skin image...", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert("RGB")
-        st.success("✅ File upload successful")
+        st.success("✅ Image uploaded successfully!")
 
-elif option == "Use Camera":
-    camera_image = st.camera_input("📸 Capture a skin image using your webcam")
+elif option == "📷 Use Camera":
+    camera_image = st.camera_input("Capture a skin image using your webcam:")
     if camera_image is not None:
-        st.write("📸 Camera captured an image")  # Debug message
         image = Image.open(camera_image).convert("RGB")
+        st.success("📸 Image captured successfully!")
 
-# --- DEBUG + PREDICTION LOGIC ---
+
+# --- PREDICTION SECTION ---
 if image is None:
-    st.warning("⚠️ No image captured or uploaded yet.")
+    st.warning("⚠️ Please upload or capture an image to proceed.")
 else:
-    st.image(image, caption="Captured Image", use_column_width=True)
-    with st.spinner("🔍 Analyzing... please wait..."):
+    st.image(image, caption="Input Image", use_column_width=True)
+    with st.spinner("🔍 Analyzing image... please wait..."):
         label, confidence = predict_image(image)
         predicted_name = LABELS[label] if label < len(LABELS) else "Unknown"
-    st.success(f"✅ Predicted Disease: {predicted_name}")
-    st.info(f"Confidence: {confidence:.2f}%")
+
+    st.success(f"✅ Predicted Disease: **{predicted_name}**")
+    st.info(f"📊 Confidence: {confidence:.2f}%")
+
+    # Optional description
+    st.markdown("---")
+    st.write("⚕️ *Note: This prediction is AI-based and not a substitute for professional medical diagnosis.*")
