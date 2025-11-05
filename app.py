@@ -1,45 +1,31 @@
 import streamlit as st
-import torch
-import os
-from PIL import Image
+import torch, os, urllib.request
 import timm
+from PIL import Image
 import torchvision.transforms as transforms
 
-# --- APP TITLE ---
+# ---------------- CONFIG ----------------
 st.set_page_config(page_title="AI Skin Disease Detection", layout="centered")
 st.title("🌿 AI-Based Skin Disease Detection")
 st.write("Upload or capture a skin image to detect possible diseases using AI.")
 
+# 🔗 Model file from your GitHub Release
+MODEL_URL = "https://github.com/Unknown-Harsha/SkinDisease_AI_Project/releases/download/v1.0/vit_base_patch16_224_best.pth"
+MODEL_FILE = "vit_base_patch16_224_best.pth"
 
-# --- LOAD MODEL SAFELY ---
+# ---------------- LOAD MODEL ----------------
 @st.cache_resource
 def load_model():
-    MODEL_PATHS = [
-        "./vit_base_patch16_224_best.pth",
-        "/mount/src/skindisease_ai_project/vit_base_patch16_224_best.pth",
-        "/app/skindisease_ai_project/vit_base_patch16_224_best.pth"
-    ]
+    if not os.path.exists(MODEL_FILE):
+        st.info("⬇️ Downloading model file (first run only)...")
+        urllib.request.urlretrieve(MODEL_URL, MODEL_FILE)
+        st.success("✅ Model downloaded successfully!")
 
-    model_path = None
-    for path in MODEL_PATHS:
-        if os.path.exists(path):
-            model_path = path
-            break
-
-    if model_path is None:
-        st.error("❌ Model file not found.\nPlease make sure 'vit_base_patch16_224_best.pth' is in the same folder as app.py.")
-        st.stop()
-
-    st.info(f"📁 Loading model from: {model_path}")
-
-    # Initialize model
     model = timm.create_model("mobilenetv2_100", pretrained=False, num_classes=15)
+    checkpoint = torch.load(MODEL_FILE, map_location=torch.device("cpu"))
 
-    # Load checkpoint safely
-    checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
-
-    if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['state_dict'], strict=False)
+    if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["state_dict"], strict=False)
     elif isinstance(checkpoint, dict):
         model.load_state_dict(checkpoint, strict=False)
     else:
@@ -49,11 +35,9 @@ def load_model():
     return model
 
 
-# --- MODEL INITIALIZATION ---
 model = load_model()
 
-
-# --- PREDICTION FUNCTION ---
+# ---------------- PREDICTION FUNCTION ----------------
 def predict_image(image):
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -61,7 +45,6 @@ def predict_image(image):
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
     ])
-
     image_tensor = transform(image).unsqueeze(0)
     outputs = model(image_tensor)
     _, predicted = torch.max(outputs, 1)
@@ -69,18 +52,16 @@ def predict_image(image):
     return predicted.item(), confidence
 
 
-# --- LABELS (MATCH YOUR DATASET) ---
+# ---------------- LABELS ----------------
 LABELS = [
-    "Acne", "Eczema", "Psoriasis", "Ringworm", "Rosacea",
-    "Vitiligo", "Warts", "Melanoma", "Basal Cell Carcinoma",
-    "Seborrheic Keratosis", "Contact Dermatitis", "Lichen Planus",
-    "Pityriasis Rosea", "Scabies", "Urticaria (Hives)"
+    "Acne","Eczema","Psoriasis","Ringworm","Rosacea",
+    "Vitiligo","Warts","Melanoma","Basal Cell Carcinoma",
+    "Seborrheic Keratosis","Contact Dermatitis","Lichen Planus",
+    "Pityriasis Rosea","Scabies","Urticaria (Hives)"
 ]
 
-
-# --- MAIN UI ---
+# ---------------- MAIN UI ----------------
 option = st.radio("Select Input Method:", ["📁 Upload Image", "📷 Use Camera"])
-
 image = None
 
 if option == "📁 Upload Image":
@@ -95,19 +76,15 @@ elif option == "📷 Use Camera":
         image = Image.open(camera_image).convert("RGB")
         st.success("📸 Image captured successfully!")
 
-
-# --- PREDICTION SECTION ---
+# ---------------- PREDICTION ----------------
 if image is None:
     st.warning("⚠️ Please upload or capture an image to proceed.")
 else:
     st.image(image, caption="Input Image", use_column_width=True)
-    with st.spinner("🔍 Analyzing image... please wait..."):
+    with st.spinner("🔍 Analyzing... please wait..."):
         label, confidence = predict_image(image)
         predicted_name = LABELS[label] if label < len(LABELS) else "Unknown"
-
     st.success(f"✅ Predicted Disease: **{predicted_name}**")
     st.info(f"📊 Confidence: {confidence:.2f}%")
-
-    # Optional description
     st.markdown("---")
-    st.write("⚕️ *Note: This prediction is AI-based and not a substitute for professional medical diagnosis.*")
+    st.caption("⚕️ This AI prediction is for educational purposes and not a substitute for professional medical advice.")
