@@ -57,6 +57,25 @@ def predict_image(image):
         _, pred = torch.max(outputs, 1)
         confidence = torch.nn.functional.softmax(outputs, dim=1)[0][pred].item()
     return pred.item(), confidence * 100
+# Label mapping — edit these names to match your dataset
+LABELS = [
+    "Acne", 
+    "Eczema", 
+    "Psoriasis", 
+    "Ringworm", 
+    "Rosacea", 
+    "Vitiligo", 
+    "Warts", 
+    "Melanoma", 
+    "Basal Cell Carcinoma", 
+    "Seborrheic Keratosis", 
+    "Contact Dermatitis", 
+    "Lichen Planus", 
+    "Pityriasis Rosea", 
+    "Scabies", 
+    "Urticaria (Hives)"
+]
+
 
 # ------------------------
 # STREAMLIT UI
@@ -93,5 +112,6 @@ if image is not None:
 
     st.success(f"✅ Predicted Label ID: {label}")
     st.info(f"Confidence: {confidence:.2f}%")
+
 
 
