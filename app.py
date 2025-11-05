@@ -1,39 +1,14 @@
 import streamlit as st
 import torch
-import timm
-import numpy as np
 from PIL import Image
-import requests
-import os
+import timm
 
-# ------------------------
-# MODEL DOWNLOAD SECTION
-# ------------------------
-MODEL_FILE = "vit_base_patch16_224_best.pth"
-MODEL_URL = "https://github.com/Unknown-Harsha/SkinDisease_AI_Project/releases/download/v1.0/vit_base_patch16_224_best.pth"
-
-def ensure_model_downloaded():
-    if not os.path.exists(MODEL_FILE):
-        st.write("📥 Downloading model file from GitHub Release...")
-        r = requests.get(MODEL_URL, stream=True)
-        with open(MODEL_FILE, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-        st.success("✅ Model downloaded successfully!")
-
-ensure_model_downloaded()
-
-# ------------------------
-# MODEL LOADING SECTION
-# ------------------------
+# --- MODEL LOADING ---
 @st.cache_resource
 def load_model():
     model = timm.create_model("mobilenetv2_100", pretrained=False, num_classes=15)
+    checkpoint = torch.load("vit_base_patch16_224_best.pth", map_location=torch.device('cpu'))
 
-    checkpoint = torch.load(MODEL_FILE, map_location=torch.device('cpu'))
-
-    # Handles multiple save formats
     if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
         model.load_state_dict(checkpoint['state_dict'], strict=False)
     elif isinstance(checkpoint, dict):
@@ -44,46 +19,38 @@ def load_model():
     model.eval()
     return model
 
+
 model = load_model()
 
-# ------------------------
-# PREDICTION SECTION
-# ------------------------
+# --- PREDICTION FUNCTION ---
 def predict_image(image):
-    transform = timm.data.transforms_factory.transforms_imagenet_eval()
-    img_tensor = transform(image).unsqueeze(0)
-    with torch.no_grad():
-        outputs = model(img_tensor)
-        _, pred = torch.max(outputs, 1)
-        confidence = torch.nn.functional.softmax(outputs, dim=1)[0][pred].item()
-    return pred.item(), confidence * 100
-# Label mapping — edit these names to match your dataset
+    import torchvision.transforms as transforms
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    image_tensor = transform(image).unsqueeze(0)
+    outputs = model(image_tensor)
+    _, predicted = torch.max(outputs, 1)
+    confidence = torch.softmax(outputs, dim=1)[0][predicted.item()] * 100
+    return predicted.item(), confidence
+
+
+# --- LABELS ---
 LABELS = [
-    "Acne", 
-    "Eczema", 
-    "Psoriasis", 
-    "Ringworm", 
-    "Rosacea", 
-    "Vitiligo", 
-    "Warts", 
-    "Melanoma", 
-    "Basal Cell Carcinoma", 
-    "Seborrheic Keratosis", 
-    "Contact Dermatitis", 
-    "Lichen Planus", 
-    "Pityriasis Rosea", 
-    "Scabies", 
-    "Urticaria (Hives)"
+    "Acne", "Eczema", "Psoriasis", "Ringworm", "Rosacea",
+    "Vitiligo", "Warts", "Melanoma", "Basal Cell Carcinoma",
+    "Seborrheic Keratosis", "Contact Dermatitis", "Lichen Planus",
+    "Pityriasis Rosea", "Scabies", "Urticaria (Hives)"
 ]
 
 
-# ------------------------
-# STREAMLIT UI
-# ------------------------
-st.title("🩺 Skin Disease Detection AI")
-st.write("Upload an image to classify common skin diseases and conditions.")
-
-st.write("📸 You can either upload an image or use your webcam for live detection.")
+# --- MAIN APP UI ---
+st.title("🌿 AI-Based Skin Disease Detection (Camera + Upload)")
+st.write("Detect skin diseases in real-time using AI")
 
 option = st.radio("Select input method:", ["Upload Image", "Use Camera"])
 
@@ -93,22 +60,21 @@ if option == "Upload Image":
     uploaded_file = st.file_uploader("Choose a skin image...", type=["jpg", "jpeg", "png"])
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert("RGB")
+        st.success("✅ File upload successful")
 
 elif option == "Use Camera":
-    camera_image = st.camera_input("Capture a skin image using your webcam")
+    camera_image = st.camera_input("📸 Capture a skin image using your webcam")
     if camera_image is not None:
+        st.write("📸 Camera captured an image")  # Debug message
         image = Image.open(camera_image).convert("RGB")
 
-if image is not None:
+# --- DEBUG + PREDICTION LOGIC ---
+if image is None:
+    st.warning("⚠️ No image captured or uploaded yet.")
+else:
     st.image(image, caption="Captured Image", use_column_width=True)
-    st.write("🔍 Analyzing... please wait.")
-    label, confidence = predict_image(image)
-    predicted_name = LABELS[label] if label < len(LABELS) else "Unknown"
+    with st.spinner("🔍 Analyzing... please wait..."):
+        label, confidence = predict_image(image)
+        predicted_name = LABELS[label] if label < len(LABELS) else "Unknown"
     st.success(f"✅ Predicted Disease: {predicted_name}")
     st.info(f"Confidence: {confidence:.2f}%")
-    st.info(f"Confidence: {confidence:.2f}%")
-
-
-
-
-
