@@ -1,0 +1,44 @@
+import streamlit as st
+import torch
+import timm
+import numpy as np
+import cv2
+from PIL import Image
+
+# --- Title ---
+st.title("🩺 Skin Disease Detection using AI")
+st.write("Upload a skin image to predict the disease type using deep learning.")
+
+# --- Load Model ---
+@st.cache_resource
+def load_model():
+    model_name = "vit_base_patch16_224"
+    num_classes = 7  # number of skin disease classes in dataset
+    model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
+    model.load_state_dict(torch.load("vit_base_patch16_224_best.pth", map_location='cpu'))
+    model.eval()
+    return model
+
+model = load_model()
+
+# --- Class Labels (adjust these to match your dataset) ---
+labels = ['akiec', 'bcc', 'bkl', 'df', 'mel', 'nv', 'vasc']
+
+# --- Upload Image ---
+uploaded = st.file_uploader("Upload a skin image...", type=["jpg", "jpeg", "png"])
+
+if uploaded is not None:
+    image = Image.open(uploaded).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    img = np.array(image)
+    img = cv2.resize(img, (224, 224))
+    img = np.transpose(img, (2, 0, 1)) / 255.0
+    img = torch.tensor(img, dtype=torch.float32).unsqueeze(0)
+
+    with torch.no_grad():
+        preds = model(img)
+        pred_class = torch.argmax(preds, dim=1).item()
+        conf = torch.softmax(preds, dim=1)[0][pred_class].item()
+
+    st.success(f"✅ Prediction: {labels[pred_class].upper()}  |  Confidence: {conf*100:.2f}%")
