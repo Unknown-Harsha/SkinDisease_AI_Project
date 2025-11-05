@@ -87,13 +87,11 @@ if image is not None:
     st.success(f"✅ Predicted Label ID: {label}")
     st.info(f"Confidence: {confidence:.2f}%")
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
 
     st.write("🔍 Analyzing... please wait.")
     label, confidence = predict_image(image)
 
     st.success(f"✅ Predicted Label ID: {label}")
     st.info(f"Confidence: {confidence:.2f}%")
+
 
